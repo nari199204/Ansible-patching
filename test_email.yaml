@@ -1,0 +1,10 @@
+---
+- name: Test Email Notification
+  hosts: localhost
+  become: no
+
+  tasks:
+    - name: Send test email
+      shell: |
+          echo -e "To: lakshmi.narayana@bluebash.co\nSubject: Ansible Playbook Execution - SUCCESS\n\nThe Ansible playbook has been successfully executed." | /usr/bin/msmtp --debug --account=gmail lakshmi.narayana@bluebash.co
+      delegate_to: localhost

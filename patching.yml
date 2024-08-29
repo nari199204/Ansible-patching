@@ -1,0 +1,84 @@
+---
+- name: Ubuntu 22.04 Patching Management
+  hosts: ubuntu
+  remote_user: ubuntu
+  become: true
+
+  tasks:
+  - name: Check if application is running
+    shell:
+      cmd: "pgrep -f nginx || pgrep -f redis || true"
+    register: app_running
+
+  - name: Skip patching if application is running
+    meta: end_play
+    when: app_running.rc == 0
+
+  - name: Update package list
+    apt:
+      update_cache: yes
+      cache_valid_time: 3600
+
+  - name: Upgrade kernel to latest version
+    apt:
+      name: "*"
+      state: latest
+      dist: yes
+
+  - name: Install security updates
+    apt:
+      name: "*"
+      state: latest
+      security: yes
+      autoremove: yes
+
+  - name: Check if kernel update is required
+    shell:
+      cmd: "apt list --upgradable | grep linux-generic-hwe-22.04"
+      register: kernel_update_required
+
+  - name: Update kernel if required
+    apt:
+      name: linux-generic-hwe-22.04
+      state: latest
+    when: kernel_update_required.stdout != ""
+
+  - name: Check if kernel version has changed
+    shell:
+      cmd: "uname -r"
+      register: current_kernel_version
+
+  - name: Check if kernel version has changed after update
+    shell:
+      cmd: "dpkg -l | grep linux-generic-hwe-22.04 | awk '{print $2}'"
+      register: new_kernel_version
+
+  - name: Reboot if kernel version has changed
+    reboot:
+      when: current_kernel_version.stdout != new_kernel_version.stdout
+
+  - name: Verify system is up to date
+    apt:
+      name: "*"
+      state: latest
+      autoremove: yes
+
+  - name: Check for additional updates
+    apt:
+      name: "*"
+      state: latest
+      only_upgrade: yes
+
+  - name: Install ubuntu-security-status package
+    apt:
+      name: ubuntu-security-status
+      state: present
+
+  - name: Check for Ubuntu Security Notices
+    shell:
+      cmd: "ubuntu-security-status"
+      register: security_notices
+
+  - name: Print Ubuntu Security Notices
+    debug:
+      msg: "{{ security_notices.stdout }}"
