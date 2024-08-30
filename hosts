@@ -1,4 +1,4 @@
 [ubuntu]
 
-server1 ansible_host=13.201.1.173 ansible_user=ubuntu
+server1 ansible_host=65.2.141.102 ansible_user=ubuntu
 #server2 ansible_host=65.0.3.177 ansible_user=ubuntu

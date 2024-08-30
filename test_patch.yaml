@@ -116,7 +116,7 @@
 
     - name: Install debsecan package
       apt:
-        name: debsecan
+        name: debsecan  
         state: present
 
     - name: Run debsecan to scan for vulnerable packages
