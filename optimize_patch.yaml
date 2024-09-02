@@ -4,14 +4,13 @@
   remote_user: ubuntu
   become: true
 
+  
   pre_tasks:
     - name: Add host key to known_hosts
-      ssh_keyscan:
-        host: "{{ hostvars[inventory_hostname]['ansible_host'] }}"
-        type: rsa
+      shell: |
+        ssh-keyscan -H {{ hostvars[inventory_hostname]['ansible_host'] }} >> ~/.ssh/known_hosts
       delegate_to: localhost
       become: no
-      loop: "{{ groups['all'] | map('extract', hostvars, 'ansible_host') | list }}"
 
   tasks:
     - name: Update package list
@@ -89,4 +88,5 @@
   handlers:
     - name: Send test email
       shell: |
-        echo -e "To: lakshmi.narayana@bluebash.co\nSubject: Ansible Playbook Execution - SUCCESS\n\nThe Ansible playbook has been successfully executed
+        echo -e "To: lakshmi.narayana@bluebash.co\nSubject: Ansible Playbook Execution - SUCCESS\n\nThe Ansible playbook has been successfully executed." | /usr/bin/msmtp --debug --account=gmail lakshmi.narayana@bluebash.co
+      delegate_to: localhost
