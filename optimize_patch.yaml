@@ -101,12 +101,28 @@
       register: debsecan_result
 
 
-   
+    - name: Configure Certbot to renew certificates automatically
+      cron:
+        name: certbot renew
+        minute: 0
+        hour: 0
+        day: "*"
+        month: "*"
+        weekday: "*"
+        job: certbot renew
+
+    - name: Install Ubuntu Advantage Tools for Livepatch
+      apt:
+        name: ubuntu-advantage-tools
+        state: latest
+  
 
     - name: Trigger email notification
       meta: flush_handlers
 
   handlers:
+ 
+
     - name: Send test email
       shell: |
         echo -e "To: lakshmi.narayana@bluebash.co\nSubject: Ansible Playbook Execution - SUCCESS\n\nThe Ansible playbook has been successfully executed." | /usr/bin/msmtp --debug --account=gmail lakshmi.narayana@bluebash.co
