@@ -1,5 +1,0 @@
-To: lakshmi.narayana@bluebash.co
-Subject: Test Subject
-
-Test email body
-
