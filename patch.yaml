@@ -30,16 +30,7 @@
     
 
    
-    - name: Apply security patches for RVM-managed Ruby versions
-      shell: |
-        source /home/ubuntu/.rvm/scripts/rvm
-        rvm get stable --auto-dotfiles
-        rvm all do gem update --system --force
-      args:
-        executable: /bin/bash
-      become: yes
-      tags: rvm_security_patches
-      notify: Send test email
+
 
 
 
