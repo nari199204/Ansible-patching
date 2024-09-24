@@ -4,72 +4,59 @@
   remote_user: ubuntu
   become: true
 
+  
   pre_tasks:
     - name: Add host key to known_hosts
-      shell: ssh-keyscan -t rsa {{ hostvars[inventory_hostname]['ansible_host'] }} >> ~/.ssh/known_hosts
+      shell: |
+        ssh-keyscan -H {{ hostvars[inventory_hostname]['ansible_host'] }} >> ~/.ssh/known_hosts
       delegate_to: localhost
       become: no
-      loop: "{{ groups['all'] | map('extract', hostvars, 'ansible_host') | list }}"
 
   tasks:
-    - name: Check if application is running
-      shell:
-        cmd: "pgrep -f nginx || pgrep -f redis || true"
-      register: app_running
-
     - name: Update package list
       apt:
         update_cache: yes
+        cache_valid_time: 3600
 
     - name: Upgrade all packages
       apt:
-        upgrade: yes
-
-    - name: Upgrade kernel to latest version
-      apt:
-        name: linux-generic
-        state: latest
+        upgrade: full
 
     - name: Install security updates
       apt:
         name: "*"
         state: latest
         autoremove: yes
+    
 
-    - name: Dist-upgrade
-      apt:
-        upgrade: full
+   
+    - name: Apply security patches for RVM-managed Ruby versions
+      shell: |
+        source /home/ubuntu/.rvm/scripts/rvm
+        rvm get stable --auto-dotfiles
+        rvm all do gem update --system --force
+      args:
+        executable: /bin/bash
+      become: yes
+      tags: rvm_security_patches
+      notify: Send test email
 
-    - name: Install Nginx
-      apt:
-        name: nginx
-        state: present
 
-    - name: Start Nginx
-      service:
-        name: nginx
-        state: started
-        enabled: yes
 
-    - name: Autoremove unused packages
-      apt:
-        autoremove: yes
+   
 
-    - name: Autoclean package cache
-      apt:
-        autoclean: yes
-
-    - name: Install and configure unattended-upgrades
+    - name: Install unattended-upgrades
       apt:
         name: unattended-upgrades
         state: present
 
-    - name: Enable unattended-upgrades
+    - name: Configure unattended-upgrades
       lineinfile:
         dest: /etc/apt/apt.conf.d/50unattended-upgrades
         regexp: '^//      "${distro_id}:${distro_codename}-security";'
         line: '      "${distro_id}:${distro_codename}-security";'
         state: present
+        create: yes
 
     - name: Enable automatic security updates
       lineinfile:
@@ -77,13 +64,7 @@
         regexp: '^APT::Periodic::Update-Package-Lists'
         line: 'APT::Periodic::Update-Package-Lists "1";'
         state: present
-
-    - name: Enable automatic security upgrades
-      lineinfile:
-        dest: /etc/apt/apt.conf.d/20auto-upgrades
-        regexp: '^APT::Periodic::Unattended-Upgrade'
-        line: 'APT::Periodic::Unattended-Upgrade "1";'
-        state: present
+        create: yes
 
     - name: Enable Ubuntu's Security Repository
       apt_key:
@@ -105,10 +86,8 @@
         name: linux-generic
         state: latest
 
-    - name: Install update-manager-core package
-      apt:
-        name: update-manager-core
-        state: present
+    
+
 
     - name: Run ubuntu-security-status to check for vulnerable packages
       command: ubuntu-security-status
@@ -123,10 +102,6 @@
       command: debsecan
       register: debsecan_result
 
-    - name: Install Certbot's Nginx plugin
-      apt:
-        name: python3-certbot-nginx
-        state: present
 
     - name: Configure Certbot to renew certificates automatically
       cron:
@@ -142,19 +117,27 @@
       apt:
         name: ubuntu-advantage-tools
         state: latest
-
-    - name: Install apt-listchanges
-      apt:
-        name: apt-listchanges
-        state: present
+  
 
     - name: Trigger email notification
       meta: flush_handlers
-    
-    - meta: end_play
 
   handlers:
+ 
+
     - name: Send test email
       shell: |
-        echo -e "To: lakshmi.narayana@bluebash.co\nSubject: Ansible Playbook Execution - SUCCESS\n\nThe Ansible playbook has been successfully executed." | /usr/bin/msmtp --debug --account=gmail lakshmi.narayana@bluebash.co
+        echo -e "To: lakshmi.narayana@bluebash.co\nSubject: [Important] Ansible Playbook Execution Report\n\n\
+        Dear Lakshmi Narayana,\n\n\
+        We are pleased to inform you that the Ansible playbook execution on the server has completed successfully.\n\n\
+        Below are the details:\n\
+        - Playbook Name: Patch Ubuntu OS\n\
+        - Host: server1\n\
+        - Date & Time: $(date)\n\n\
+        Please review the server status and verify that all updates were applied correctly. If there are any issues or discrepancies, feel free to reach out to the DevOps team.\n\n\
+        Best Regards,\n\
+        The Automation Team\n\
+        BlueBash Systems Pvt. Ltd.\n\n\
+        Note: This is an automated email, please do not reply directly." | /usr/bin/msmtp --debug --account=gmail lakshmi.narayana@bluebash.co
       delegate_to: localhost
+      become: no
